@@ -783,7 +783,10 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Publish to GitHub Release
+      id: publish
       uses: softprops/action-gh-release@v3
+      # 失败不直接判死，交给下面的 gh CLI 重试步骤兜底
+      continue-on-error: true
       if: steps.tag.outputs.status == 'success' && !cancelled() && env.UPLOAD_RELEASE == 'true'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -792,3 +795,31 @@ jobs:
         name: ${{ env.FILE_DATE }}-${{ env.UPLOAD_TAG_NAME }}
         tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
+    # softprops/action-gh-release 上传大资产时偶发 "other side closed"（连接被对端
+    # 掐断），2026-11-16 01:33 的 FIP Build 就是这么失败的。改成：发布步骤允许失败，
+    # 再用 gh CLI 带 --clobber 重试 3 次补传，避免白编一次。
+    - name: 重试上传 Release 资产（网络抖动兜底）
+      if: steps.tag.outputs.status == 'success' && steps.publish.outcome == 'failure' && !cancelled() && env.UPLOAD_RELEASE == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
+      run: |
+        set -uo pipefail
+        tag="${{ steps.tag.outputs.release_tag }}"
+        title="${{ env.FILE_DATE }}-${{ env.UPLOAD_TAG_NAME }}"
+        echo ">>> 目标 tag: $tag"
+        for i in 1 2 3; do
+          echo ">>> 第 $i 次尝试：gh release upload --clobber"
+          if ! gh release view "$tag" > /dev/null 2>&1; then
+            gh release create "$tag" --title "$title" --notes-file release.txt || true
+          fi
+          if gh release upload "$tag" bl-mt798x-dhcpd/upload/* --clobber; then
+            echo ">>> 上传成功（第 $i 次）"
+            exit 0
+          fi
+          echo ">>> 第 $i 次失败，20 秒后重试"
+          sleep 20
+        done
+        echo "::error::Release 资产重试 3 次仍失败（网络问题；产物已在 Actions artifact 里，可手动补传）"
+        exit 1
