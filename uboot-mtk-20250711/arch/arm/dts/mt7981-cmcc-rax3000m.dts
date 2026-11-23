@@ -21,6 +21,30 @@
 		system_led = "green:system";
 	};
 
+	mtd-layout {
+		layout@0 {
+			label = "default";
+			// 官方默认分区（U-Boot defconfig 原值）：ubi 114M
+			cmdline = "console=ttyS0,115200n8";
+			mtdids = "nmbm0=nmbm0";
+			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(factory),2048k(fip),114M(ubi)";
+		};
+
+		layout@1 {
+			label = "112m";
+			// 112M 大分区：ubi 112MiB（114688k）
+			mtdids = "nmbm0=nmbm0";
+			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(factory),2048k(fip),114688k(ubi)";
+		};
+
+		layout@2 {
+			label = "256m";
+			// 硬改 256M spi-nand：ubi 250.5MiB（0xFA80000）
+			mtdids = "nmbm0=nmbm0";
+			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(factory),2048k(fip),256512k(ubi)";
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 

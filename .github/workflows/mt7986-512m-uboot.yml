@@ -133,10 +133,8 @@ jobs:
               cp -f "$f" out/
             done
             # 校验：FIP 与 BL2 都要拿到
-            ls out/*"$b"*fip* >/dev/null 2>&1 \
-              || { echo "::error::$b 没有产出 fip.bin"; FAIL=1; }
-            ls out/*"$b"*bl2*  >/dev/null 2>&1 \
-              || { echo "::error::$b 没有产出 bl2.img"; FAIL=1; }
+            ls out/*"$b"* 2>/dev/null | grep -q fip || { echo "::error::$b 没有产出 fip.bin"; FAIL=1; }
+            ls out/*"$b"* 2>/dev/null | grep -q bl2 || { echo "::error::$b 没有产出 bl2.img"; FAIL=1; }
             ls out/*"$b"*multi-layout* >/dev/null 2>&1 \
               || { echo "::warning::$b 的产物名里没有 multi-layout 标识，确认 MULTI_LAYOUT 是否生效"; }
           done
