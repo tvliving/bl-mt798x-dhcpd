@@ -87,6 +87,15 @@ jobs:
               || { echo "::error::$t.dts 里没有 mtd-layout（多分区靠它）"; exit 1; }
             echo "✔ $b（$t.dts 有 mtd-layout，多分区配置就位）"
           done
+          # 四套布局必须齐全：default / 112m / 256m / 490m（490m 对应 512M 颗粒）
+          for t in mt7981-cmcc-rax3000m mt7981-cmcc-xr30; do
+            for lab in default 112m 256m 490m; do
+              grep -q "label = \"$lab\";" "$DTS/$t.dts"                 || { echo "::error::$t.dts 缺少 $lab 布局"; exit 1; }
+            done
+            n=$(grep -c 'label = "' "$DTS/$t.dts" || true)
+            [ "$n" -ge 4 ] || { echo "::error::$t.dts 布局数量不足 4（实际 $n）"; exit 1; }
+            echo "OK   $t 四套布局齐全（default/112m/256m/490m）"
+          done
           echo "================= 各机型 layout 一览 ================="
           for t in mt7981-cmcc-rax3000m mt7981-cmcc-xr30; do
             echo "--- $t"

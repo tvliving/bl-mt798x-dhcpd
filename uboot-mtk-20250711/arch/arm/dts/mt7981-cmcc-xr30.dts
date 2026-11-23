@@ -43,6 +43,13 @@
 			mtdids = "nmbm0=nmbm0";
 			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(factory),2048k(fip),256512k(ubi)";
 		};
+
+		layout@3 {
+			label = "490m";
+			// 硬改 512M spi-nand：5632k 之后给 ubi 490MiB（501760k），与 AX6000 512M 同口径
+			mtdids = "nmbm0=nmbm0";
+			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(factory),2048k(fip),490m(ubi)";
+		};
 	};
 
 	gpio-keys {
