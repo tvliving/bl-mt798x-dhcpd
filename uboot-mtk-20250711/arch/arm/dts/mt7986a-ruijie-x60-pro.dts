@@ -39,6 +39,13 @@
 			mtdids = "nmbm0=nmbm0";
 			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),512k(product_info),512k(kdump),109568k(ubi)";
 		};
+
+		layout@2 {
+			label = "immortalwrt-490m";
+			// 硬改 512M spi-nand：6656k 之后全部给 ubi（489.5MiB）
+			mtdids = "nmbm0=nmbm0";
+			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),512k(product_info),512k(kdump),501248k(ubi)";
+		};
 	};
 
 	gpio-keys {
