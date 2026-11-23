@@ -6,15 +6,14 @@
 #   cmcc_rax3000m   RAX3000M NAND 标准版
 #   cmcc_xr30       XR30 NAND
 #
-# 两台 U-Boot dts 都是四套 mtd-layout（Web UI 里可选，共用同一份 FIP/BL2）：
+# 512M 版 dts（mt7981-cmcc-{rax3000m,xr30}-512m.dts）四套 mtd-layout（Web UI 里可选）：
 #   default  bl2 1024k + u-boot-env 512k + factory 2048k + fip 2048k + ubi 114M（官方默认）
 #   112m     同前缀 + ubi 114688k（112MiB）
 #   256m     同前缀 + ubi 256512k（250.5MiB，256M 颗粒）
-#   490m     同前缀 + ubi 490MiB（512M 颗粒）
+#   512m     同前缀 + ubi 490MiB（512M 颗粒，布局名按容量叫 512m）
 #
-# 本 workflow 面向 512M 闪存：构建时断言 dts 里存在 490m 布局，产物按 512m 前缀归档。
-# 四套布局前缀一致（起点 0x580000），所以同一份 FIP + BL2 通吃四种容量，
-# 256M / 512M 两个 workflow 编出来的二进制是同源的，只是归档名和校验目标不同。
+# 本 workflow 面向 512M 闪存：构建时断言 *-512m.dts 含 default/112m/256m/512m 四套，产物按 512m 前缀归档。
+# 512M 版比 256M 版多一套 512m 布局，因此用独立的 *-512m.dts 与 -512m 多分区配置。
 #
 # 只手动触发（workflow_dispatch），不做 push/schedule 自动跑。
 name: MT7981 CMCC 512M Flash U-Boot + BL2
@@ -89,15 +88,22 @@ jobs:
               || { echo "::error::$t.dts 里没有 mtd-layout（多分区靠它）"; exit 1; }
             echo "✔ $b（$t.dts 有 mtd-layout，多分区配置就位）"
           done
-          # 本 workflow 针对 512M 闪存：确认目标布局存在（四套布局应齐全）
+          # 512M 专用：校验 dts 布局集合 = default/112m/256m/512m
           for t in mt7981-cmcc-rax3000m mt7981-cmcc-xr30; do
-            grep -q "label = \"490m\";" "$DTS/$t.dts" \
-              || { echo "::error::$t.dts 缺少 490m 布局"; exit 1; }
-            for lab in default 112m 256m 490m; do
-              grep -q "label = \"$lab\";" "$DTS/$t.dts" \
-                || echo "::warning::$t.dts 缺少 $lab 布局（四布局不完整）"
-            done
-            echo "OK   $t 含 490m 布局（512M 闪存用）"
+            d="$DTS/$t-512m.dts"
+            test -f "$d" || { echo "::error::缺少 dts $d"; exit 1; }
+            grep -q "label = \"default\";" "$d" \
+              || { echo "::error::$d 缺少 default 布局"; exit 1; }
+            grep -q "label = \"112m\";" "$d" \
+              || { echo "::error::$d 缺少 112m 布局"; exit 1; }
+            grep -q "label = \"256m\";" "$d" \
+              || { echo "::error::$d 缺少 256m 布局"; exit 1; }
+            grep -q "label = \"512m\";" "$d" \
+              || { echo "::error::$d 缺少 512m 布局"; exit 1; }
+            if grep -q "label = \"490m\";" "$d"; then
+              echo "::error::$d 不应出现 490m 布局"; exit 1
+            fi
+            echo "OK   $d 布局: default/112m/256m/512m"
           done
           echo "================= 各机型 layout 一览 ================="
           for t in mt7981-cmcc-rax3000m mt7981-cmcc-xr30; do
@@ -122,7 +128,7 @@ jobs:
       - name: 构建两台机型（FIP + BL2）
         run: |
           # 逻辑都在脚本里，避免 YAML 里堆大段内联 shell
-          bash .github/scripts/build-multi-layout.sh "cmcc_rax3000m cmcc_xr30"
+          CFG_SUFFIX="-512m" bash .github/scripts/build-multi-layout.sh "cmcc_rax3000m cmcc_xr30"
 
       - name: 按容量命名产物（512m）
         run: |
@@ -171,7 +177,7 @@ jobs:
           {
             echo "### MT7981 CMCC 512M 闪存 U-Boot(FIP) + BL2"
             echo "- 机型：cmcc_rax3000m（RAX3000M NAND）/ cmcc_xr30（XR30）"
-            echo "- 目标布局：490m（FIP 内含 default/112m/256m/490m 四套，Web UI 里选）"
+            echo "- 目标布局：512m（FIP 内含 default/112m/256m/512m 四套，Web UI 里选）"
             echo "- 多分区：$( [ "$MULTI_LAYOUT" = "1" ] && echo '开（Web UI 可选 default / immortalwrt-490m 等布局）' || echo '关' )"
             echo "- 固定 MTDPARTS：$( [ "$FIXED_MTDPARTS" = "1" ] && echo '开' || echo '关' )"
             echo "- 变体：${{ inputs.variant }}，ATF 版本：${{ inputs.fip_version }}"

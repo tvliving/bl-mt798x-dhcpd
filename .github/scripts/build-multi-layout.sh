@@ -23,6 +23,8 @@ SOC="${SOC:?缺少 SOC}"
 MULTI_LAYOUT="${MULTI_LAYOUT:-1}"
 FIXED_MTDPARTS="${FIXED_MTDPARTS:-1}"
 COPY_BL2="${COPY_BL2:-1}"
+# 可选：多分区配置名后缀（如 -512m → <soc>_<board>-512m_multi_layout_defconfig）
+CFG_SUFFIX="${CFG_SUFFIX:-}"
 
 mkdir -p out
 FAIL=0
@@ -41,11 +43,19 @@ annotate_tail() {
 for b in $BOARDS; do
     echo ""
     echo "================= BUILD $b ================="
+    UBOOT_ML_CFG="${SOC}_${b}${CFG_SUFFIX}_multi_layout_defconfig"
     echo "SOC=$SOC VARIANT=$VARIANT VERSION=$VERSION MULTI_LAYOUT=$MULTI_LAYOUT FIXED_MTDPARTS=$FIXED_MTDPARTS COPY_BL2=$COPY_BL2"
+    echo "UBOOT_CFG_MULTILAYOUT=$UBOOT_ML_CFG"
+    if [ ! -f "uboot-mtk-20250711/configs/$UBOOT_ML_CFG" ]; then
+        echo "::error title=缺多分区配置::找不到 uboot-mtk-20250711/configs/$UBOOT_ML_CFG"
+        FAIL=1
+        continue
+    fi
 
     set +e
     BOARD="$b" SOC="$SOC" VERSION="$VERSION" VARIANT="$VARIANT" \
         MULTI_LAYOUT="$MULTI_LAYOUT" FIXED_MTDPARTS="$FIXED_MTDPARTS" COPY_BL2="$COPY_BL2" \
+        UBOOT_CFG_MULTILAYOUT="$UBOOT_ML_CFG" \
         ./build.sh </dev/null 2>&1 | tee "build-$b.log"
     rc=${PIPESTATUS[0]}
     set -e
