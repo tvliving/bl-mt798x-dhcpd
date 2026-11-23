@@ -145,7 +145,14 @@ jobs:
           if [ -n "$(ls out 2>/dev/null)" ]; then
             (cd out && sha256sum ./* > sha256sums.txt)
           fi
-          [ "$FAIL" = 0 ] || { echo "::error::至少一台构建/校验失败"; exit 1; }
+          if [ "$FAIL" != 0 ]; then
+            echo "::error::有机型构建或校验失败，下面打印目录便于定位"
+            echo "===== output/ ====="
+            ls -lh output 2>/dev/null || echo "(没有 output 目录，说明 build.sh 没跑到底)"
+            echo "===== out/ ====="
+            ls -lh out 2>/dev/null || true
+            exit 1
+          fi
 
       - name: 上传编译日志（失败时）
         if: failure()
